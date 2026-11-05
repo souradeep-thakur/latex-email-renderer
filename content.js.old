@@ -1,0 +1,90 @@
+// ==========================================
+// CONTENT SCRIPT: Hotkey Trigger (Alt + M)
+// ==========================================
+
+console.log("LaTeX Extension: Listening for Alt + M (or Option + M)");
+
+// 1. Trusted Types Security Policy
+let latexPolicy;
+if (window.trustedTypes && window.trustedTypes.createPolicy) {
+  latexPolicy = window.trustedTypes.createPolicy('latex-email-policy', {
+    createHTML: (string) => string
+  });
+}
+
+// 2. Intercept Alt + M (Option + M)
+document.addEventListener('keydown', (event) => {
+  // Check if Alt (or Option) is held down and 'm' is pressed
+  if (event.altKey && event.key.toLowerCase() === 'm') {
+    const target = event.target;
+    
+    // Check if target is editable, or if it's Gmail's textbox
+    const isEditable = target.isContentEditable || 
+                       target.closest('[contenteditable="true"]') || 
+                       target.closest('[role="textbox"]');
+    
+    if (isEditable) {
+      renderEquationsInSelection(target, event);
+    }
+  }
+}, true); 
+
+// 3. Smart Traversal & Rendering
+function renderEquationsInSelection(editableNode, event) {
+  const selection = window.getSelection();
+  if (!selection.rangeCount) return;
+
+  let node = selection.focusNode;
+  console.log("1. Alt+M pressed! Cursor is inside:", node.nodeName);
+
+  let textToCheck = "";
+  let isContainer = false;
+
+  if (node.nodeType === Node.TEXT_NODE) {
+    textToCheck = node.nodeValue;
+  } else if (node.nodeType === Node.ELEMENT_NODE) {
+    textToCheck = node.innerText || node.textContent;
+    isContainer = true;
+  }
+
+  const regex = /\$\$([\s\S]*?)\$\$/;
+  
+  if (regex.test(textToCheck)) {
+    console.log("2. Found LaTeX! Rendering...");
+    
+    // Stop any browser default behaviors for this hotkey
+    event.preventDefault(); 
+    event.stopPropagation(); 
+
+    const updatedText = textToCheck.replace(regex, (match, latexCode) => {
+      try {
+        return katex.renderToString(latexCode.trim(), { 
+          displayMode: false, 
+          throwOnError: false 
+        });
+      } catch (e) {
+        console.error("KaTeX error:", e);
+        return match; 
+      }
+    });
+
+    const wrapper = document.createElement('span');
+    
+    if (latexPolicy) {
+      wrapper.innerHTML = latexPolicy.createHTML(updatedText);
+    } else {
+      wrapper.innerHTML = updatedText;
+    }
+
+    if (isContainer) {
+      node.innerHTML = "";
+      node.appendChild(wrapper);
+    } else {
+      node.parentNode.replaceChild(wrapper, node);
+    }
+    
+    console.log("3. Success! Equation rendered.");
+  } else {
+    console.log("2. No equation found in this line.");
+  }
+}

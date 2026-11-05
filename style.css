@@ -1,0 +1,16 @@
+/* ==========================================
+   STYLESHEET: styles.css
+   ========================================== */
+
+/* Target block-level KaTeX equations rendered in the email body */
+.katex-display {
+  margin: 0.5em 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  max-width: 100%;
+}
+
+/* Ensure inline equations blend smoothly with email typography */
+.katex {
+  font-size: 1.1em; /* Slightly boosts legibility inside standard email fonts */
+}
